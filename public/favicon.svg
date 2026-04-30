@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="heartGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#b91c1c" />
+    </linearGradient>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0f2c" />
+      <stop offset="100%" stop-color="#0d47a1" />
+    </linearGradient>
+  </defs>
+  <!-- Background Circle representing trust and care -->
+  <circle cx="50" cy="50" r="48" fill="url(#bgGradient)" />
+  
+  <!-- Heart Shape -->
+  <path d="M50 82 C50 82 25 60 18 42 C14 30 20 18 32 18 C40 18 47 24 50 32 C53 24 60 18 68 18 C80 18 86 30 82 42 C75 60 50 82 50 82 Z" 
+        fill="url(#heartGradient)" />
+        
+  <!-- Pulse Line indicating health and tracking -->
+  <path d="M22 45 L35 45 L42 25 L58 65 L65 45 L78 45" 
+        fill="none" 
+        stroke="#ffffff" 
+        stroke-width="5" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" />
+</svg>
