@@ -23,12 +23,12 @@ app.use(cors({
         
         const cleanOrigin = origin.trim().replace(/\/$/, "");
         
-        if (ALLOWED_ORIGINS.includes(cleanOrigin)) {
+        const isVercelDeployment = cleanOrigin.startsWith("https://smart-heart-attack-prediction") && cleanOrigin.endsWith(".vercel.app");
+        
+        if (ALLOWED_ORIGINS.includes(cleanOrigin) || isVercelDeployment) {
             return callback(null, true);
         } else {
-            console.warn(`CORS Warning: ${cleanOrigin} not in [${ALLOWED_ORIGINS.join(", ")}]`);
-            // During deployment debugging, let's be slightly more permissive
-            // or at least not throw an error that breaks the response
+            console.warn(`CORS Warning: ${cleanOrigin} not in [${ALLOWED_ORIGINS.join(", ")}] and not a recognized Vercel deployment.`);
             return callback(null, false);
         }
     },
