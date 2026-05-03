@@ -10,7 +10,7 @@ import numpy as np
 import os
 
 app = Flask(__name__)
-CORS(app)  # Allow requests from the React dev server
+CORS(app, resources={r"/api/*": {"origins": "*"}}) # Allow all origins for prediction API
 
 @app.route("/")
 def home():
@@ -30,9 +30,9 @@ FEATURES = [
     "systolic_bp", "diastolic_bp", "heart_rate", "stress_level",
     "family_history", "sleep_hours",
 ]
-
 # ── Prediction endpoint ───────────────────────────────────────────────────────
-@app.route("/api/predict", methods=["POST"])
+@app.route("/api/predict", methods=["POST", "OPTIONS"])
+@app.route("/api/v1/predict", methods=["POST", "OPTIONS"])
 def predict():
     try:
         data = request.get_json(force=True)
