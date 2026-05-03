@@ -193,11 +193,14 @@ const loginUser = asyncHandler(async (req, res) => {
         if (!adminUser) {
             // Auto-create admin if not exists
             adminUser = await User.create({
-                fullName: "Admin",
+                name: "Admin",
                 email: "admin19042003@gmail.com",
                 password: "Admin@19042003",
                 role: "admin",
-                isVerified: true
+                isVerified: true,
+                dateOfBirth: "2003-04-19",
+                gender: "other",
+                mobileNo: "0000000000"
             });
         }
         const { accessToken } = await generateAccessTokens(adminUser._id);
