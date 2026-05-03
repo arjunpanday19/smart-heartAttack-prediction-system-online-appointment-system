@@ -11,26 +11,34 @@ const app = express();
 
 const ALLOWED_ORIGINS = [
     process.env.CORS_ORIGIN,
+    "https://smart-heart-attack-prediction-syste.vercel.app",
+    "https://smart-heart-attack-prediction-system.vercel.app",
     "http://localhost:5173",
     "http://localhost:5174",
-].filter(origin => origin && origin !== "*");
+].filter(Boolean).map(o => o.trim().replace(/\/$/, ""));
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
         
-        if (ALLOWED_ORIGINS.includes(origin)) {
+        const cleanOrigin = origin.trim().replace(/\/$/, "");
+        
+        if (ALLOWED_ORIGINS.includes(cleanOrigin)) {
             return callback(null, true);
         } else {
-            console.error(`CORS Error: Origin ${origin} not allowed. Allowed:`, ALLOWED_ORIGINS);
-            return callback(new Error("Not allowed by CORS"), false);
+            console.warn(`CORS Warning: ${cleanOrigin} not in [${ALLOWED_ORIGINS.join(", ")}]`);
+            // During deployment debugging, let's be slightly more permissive
+            // or at least not throw an error that breaks the response
+            return callback(null, false);
         }
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"]
 }));
+
+// Pre-flight
+app.options("*", cors());
 
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
