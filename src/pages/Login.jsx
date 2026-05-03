@@ -128,28 +128,15 @@ export default function Login() {
   const onSubmit = async (data) => {
     clearErrors();
 
-    // ── Hardcoded Admin bypass (Kept for compatibility) ──
-    const isAdminEmail = data.email.toLowerCase() === "admin19042003@gmail.com";
-    if (isAdminEmail && data.password === "Admin@19042003") {
-      const adminUser = { name: "Admin", email: "admin19042003@gmail.com", role: "admin" };
-      localStorage.setItem("user", JSON.stringify(adminUser));
-      localStorage.setItem("adminSession", "true");
-      window.dispatchEvent(new Event("storage"));
-      navigate("/admin/dashboard");
-      return;
-    }
-    // ── If admin email but wrong password ──
-    if (isAdminEmail) {
-      setError("password", { type: "server", message: "Incorrect admin password." });
-      return;
-    }
-
     try {
       const res = await api.post("/users/login", { email: data.email, password: data.password });
       const user = res.data.data.user;
       const token = res.data.data.accessToken;
 
       localStorage.setItem("user", JSON.stringify(user));
+      if (user.role === "admin") {
+        localStorage.setItem("adminSession", "true");
+      }
       if (user.profileImage) {
         localStorage.setItem("profileImage", user.profileImage);
       }

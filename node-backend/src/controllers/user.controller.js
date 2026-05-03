@@ -185,6 +185,31 @@ const loginUser = asyncHandler(async (req, res) => {
     }
 
     const user = await User.findOne({ email });
+    
+    // ── Handle Hardcoded Admin ──
+    const isAdminEmail = email.toLowerCase() === "admin19042003@gmail.com";
+    if (isAdminEmail && password === "Admin@19042003") {
+        let adminUser = user;
+        if (!adminUser) {
+            // Auto-create admin if not exists
+            adminUser = await User.create({
+                fullName: "Admin",
+                email: "admin19042003@gmail.com",
+                password: "Admin@19042003",
+                role: "admin",
+                isVerified: true
+            });
+        }
+        const { accessToken } = await generateAccessTokens(adminUser._id);
+        const loggedInUser = await User.findById(adminUser._id).select("-password");
+        const isProduction = process.env.NODE_ENV === "production";
+        const options = { httpOnly: true, secure: isProduction };
+        
+        return res.status(200)
+            .cookie("accessToken", accessToken, options)
+            .json(new ApiResponse(200, { user: loggedInUser, accessToken }, "Admin logged In Successfully"));
+    }
+
     if (!user) {
         throw new ApiError(404, "User does not exist");
     }
