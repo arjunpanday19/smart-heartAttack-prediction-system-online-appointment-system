@@ -141,6 +141,10 @@ export default function Login() {
       localStorage.setItem("user", JSON.stringify(user));
       if (user.role === "admin") {
         localStorage.setItem("adminSession", "true");
+        if (token) localStorage.setItem("token", token);
+        window.dispatchEvent(new Event("storage"));
+        navigate("/admin/dashboard");
+        return;
       }
       if (user.profileImage) {
         localStorage.setItem("profileImage", user.profileImage);

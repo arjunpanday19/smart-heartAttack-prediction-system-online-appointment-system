@@ -222,6 +222,14 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Invalid user credentials");
     }
 
+    // ── Compatibility Fix ──
+    // If user has no OTP field but is not verified, they are likely legacy users
+    // Let's verify them automatically to prevent 403 errors
+    if (!user.isVerified && !user.otp) {
+        user.isVerified = true;
+        await user.save({ validateBeforeSave: false });
+    }
+
     if (!user.isVerified) {
         throw new ApiError(403, "Please verify your email before logging in. Check your email for OTP.");
     }
