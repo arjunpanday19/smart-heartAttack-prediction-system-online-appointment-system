@@ -175,6 +175,8 @@ export default function Login() {
          setError("email", { type: "server", message: "No account found with this email. Please register first." });
        } else if (error.response?.status === 401) {
          setError("password", { type: "server", message: "Incorrect password — please try again" });
+       } else if (error.response?.status === 403) {
+         setError("email", { type: "server", message: error.response.data.message || "Account not verified. Please check your email for OTP." });
        } else {
          setError("email", { type: "server", message: "Login failed. Please try again." });
        }

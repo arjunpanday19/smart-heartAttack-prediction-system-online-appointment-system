@@ -6,6 +6,11 @@ import { Availability } from "../models/availability.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { createNotification } from "./notification.controller.js";
+import { sendOTPEmail } from "../utils/brevo.js";
+
+const generateOTP = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 const generateAccessTokens = async (userId) => {
     try {
@@ -31,7 +36,15 @@ const registerUser = asyncHandler(async (req, res) => {
 
     const existedUser = await User.findOne({ email });
     if (existedUser) {
-        throw new ApiError(409, "User with email already exists");
+        if (existedUser.isVerified) {
+            throw new ApiError(409, "User with email already exists and is verified. Please login.");
+        }
+        // If not verified, we can allow them to "register" again which effectively resends the OTP
+        // We'll delete the old unverified user to start fresh
+        await User.findByIdAndDelete(existedUser._id);
+        if (existedUser.role === "doctor") {
+            await Doctor.findOneAndDelete({ user: existedUser._id });
+        }
     }
 
     // handle files if any
@@ -75,6 +88,9 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
 
+    const otp = generateOTP();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
     const user = await User.create({
         name: fullName,
         email,
@@ -87,7 +103,10 @@ const registerUser = asyncHandler(async (req, res) => {
         pincode,
         locationCoords: parsedCoords,
         profileImage: profileImageUrl,
-        status: "active"
+        status: "active",
+        otp,
+        otpExpiry,
+        isVerified: false
     });
 
     let doctorProfile = null;
@@ -145,29 +164,17 @@ const registerUser = asyncHandler(async (req, res) => {
         }
     }
 
-    const createdUser = await User.findById(user._id).select("-password");
-    if (!createdUser) {
-        throw new ApiError(500, "Something went wrong while registering the user");
+    // Send OTP Email
+    try {
+        await sendOTPEmail(email, fullName, otp);
+    } catch (error) {
+        console.error("Failed to send OTP email during registration:", error);
     }
 
-    const { accessToken } = await generateAccessTokens(createdUser._id);
-    
-    // Create welcome notification
-    createNotification({
-        userId: createdUser._id,
-        icon: "👋",
-        type: "welcome",
-        message: `Welcome to Aurelyf Care, ${createdUser.name}! Your account has been created as a ${createdUser.role}.${
-            createdUser.role === "doctor" ? " Your profile is pending admin approval." : ""
-        }`,
-    }).catch(err => console.error("Welcome notification error:", err));
-
-    const isProduction = process.env.NODE_ENV === "production";
-    const options = { httpOnly: true, secure: isProduction };
+    const createdUser = await User.findById(user._id).select("-password -otp -otpExpiry");
 
     return res.status(201)
-        .cookie("accessToken", accessToken, options)
-        .json(new ApiResponse(201, { user: createdUser, doctor: doctorProfile, accessToken }, "User registered Successfully"));
+        .json(new ApiResponse(201, { user: createdUser, doctor: doctorProfile }, "Registration successful. Please verify your email with the OTP sent."));
 });
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -185,6 +192,10 @@ const loginUser = asyncHandler(async (req, res) => {
     const isPasswordValid = await user.isPasswordCorrect(password);
     if (!isPasswordValid) {
         throw new ApiError(401, "Invalid user credentials");
+    }
+
+    if (!user.isVerified) {
+        throw new ApiError(403, "Please verify your email before logging in. Check your email for OTP.");
     }
 
     const { accessToken } = await generateAccessTokens(user._id);
@@ -301,6 +312,93 @@ const getAllUsers = asyncHandler(async(req, res) => {
     return res.status(200).json(new ApiResponse(200, usersWithProfiles, "Users fetched successfully"));
 })
 
+const verifyOTP = asyncHandler(async (req, res) => {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+        throw new ApiError(400, "Email and OTP are required");
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    if (user.isVerified) {
+        throw new ApiError(400, "User is already verified");
+    }
+
+    console.log(`Verifying OTP for ${email}. Provided: [${otp}], Stored: [${user.otp}]`);
+
+    if (String(user.otp) !== String(otp)) {
+        throw new ApiError(400, "Invalid OTP");
+    }
+
+    if (user.otpExpiry < new Date()) {
+        throw new ApiError(400, "OTP has expired. Please request a new one.");
+    }
+
+    user.isVerified = true;
+    user.otp = undefined;
+    user.otpExpiry = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    // Generate token so they are logged in after verification
+    const { accessToken } = await generateAccessTokens(user._id);
+    const options = { httpOnly: true, secure: process.env.NODE_ENV === "production" };
+
+    // Create welcome notification since they are now verified
+    createNotification({
+        userId: user._id,
+        icon: "👋",
+        type: "welcome",
+        message: `Welcome to Aurelyf Care, ${user.name}! Your email has been verified.`,
+    }).catch(err => console.error("Welcome notification error:", err));
+
+    let doctorProfile = null;
+    if (user.role === "doctor") {
+        doctorProfile = await Doctor.findOne({ user: user._id });
+    }
+
+    return res.status(200)
+        .cookie("accessToken", accessToken, options)
+        .json(new ApiResponse(200, { user, doctor: doctorProfile, accessToken }, "Email verified successfully"));
+});
+
+const resendOTP = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        throw new ApiError(400, "Email is required");
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    if (user.isVerified) {
+        throw new ApiError(400, "User is already verified");
+    }
+
+    const otp = generateOTP();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+    user.otp = otp;
+    user.otpExpiry = otpExpiry;
+    await user.save({ validateBeforeSave: false });
+
+    try {
+        await sendOTPEmail(email, user.name, otp);
+    } catch (error) {
+        throw new ApiError(500, "Failed to send OTP email");
+    }
+
+    return res.status(200).json(new ApiResponse(200, {}, "OTP resent successfully"));
+});
+
 const updateProfile = asyncHandler(async (req, res) => {
     // This route accepts multipart/form-data via multer
     // req.file  = profileImage (if sent)
@@ -380,5 +478,7 @@ export {
     getPendingDoctors,
     approveDoctor,
     getAllUsers,
-    updateProfile
+    updateProfile,
+    verifyOTP,
+    resendOTP
 };

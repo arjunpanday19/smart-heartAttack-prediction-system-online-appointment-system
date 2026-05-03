@@ -9,7 +9,9 @@ import {
     getPendingDoctors,
     approveDoctor,
     getAllUsers,
-    updateProfile
+    updateProfile,
+    verifyOTP,
+    resendOTP
 } from "../controllers/user.controller.js";
 import { upload, uploadImage } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -27,6 +29,8 @@ router.route("/register").post(
 );
 
 router.route("/login").post(loginUser);
+router.route("/verify-otp").post(verifyOTP);
+router.route("/resend-otp").post(resendOTP);
 
 // secured routes
 router.route("/logout").post(verifyJWT, logoutUser);

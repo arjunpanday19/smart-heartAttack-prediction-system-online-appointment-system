@@ -57,6 +57,16 @@ const userSchema = new Schema({
         enum: ["active", "inactive", "suspended"],
         default: "active"
     },
+    otp: {
+        type: String
+    },
+    otpExpiry: {
+        type: Date
+    },
+    isVerified: {
+        type: Boolean,
+        default: false
+    }
     
 }, {timestamps: true})
 

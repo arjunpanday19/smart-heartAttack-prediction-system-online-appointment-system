@@ -129,6 +129,12 @@ export default function Signup() {
   const [docPreviews, setDocPreviews] = useState({});
   const [docErrors, setDocErrors] = useState({});
 
+  // OTP States
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [isOtpSubmitting, setIsOtpSubmitting] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
+
   useEffect(() => {
     const uStr = localStorage.getItem("user");
     // Redirect if user is already in localStorage and didn't just signup right now
@@ -277,30 +283,15 @@ export default function Signup() {
       }
 
       const res = await api.post("/users/register", formData);
-
-      const newUser = res.data.data.user;
-      const token = res.data.data.accessToken;
-
-      // Auto-login the new user immediately to localstorage (temporary backwards compatibility)
-      localStorage.setItem("user", JSON.stringify(newUser));
-      if (newUser.profileImage) {
-        localStorage.setItem("profileImage", newUser.profileImage);
-      }
-      if (token) localStorage.setItem("token", token);
-      window.dispatchEvent(new Event("storage"));
-      window.dispatchEvent(new Event("auth-change"));
-
-      addNotification(newUser.email, {
-        icon: "👋",
-        type: "welcome",
-        message: `Welcome to Aurelyf Care, ${newUser.name}! Your account has been created as a ${role}.${
-          role === "doctor" ? " Your profile is pending admin approval." : ""
-        }`,
+      
+      setRegisteredEmail(data.email);
+      setIsVerifying(true);
+      
+      addNotification(data.email, {
+        icon: "✉️",
+        type: "info",
+        message: `An OTP has been sent to ${data.email}. Please verify to complete signup.`,
       });
-
-      setSuccessName(data.fullName);
-      setShowSuccess(true);
-      setTimeout(() => navigate(role === "doctor" ? "/profile" : "/"), 2000);
       
     } catch (error) {
        console.error("Signup failed", error);
@@ -314,6 +305,60 @@ export default function Signup() {
        } else {
           alert(serverMessage || "An error occurred during signup. Please try again.");
        }
+    }
+  };
+
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    if (!otp || otp.length !== 6) {
+      alert("Please enter a valid 6-digit OTP");
+      return;
+    }
+
+    setIsOtpSubmitting(true);
+    try {
+      const res = await api.post("/users/verify-otp", {
+        email: registeredEmail,
+        otp: otp
+      });
+
+      const verifiedUser = res.data.data.user;
+      const token = res.data.data.accessToken;
+
+      // Login the user
+      localStorage.setItem("user", JSON.stringify(verifiedUser));
+      if (verifiedUser.profileImage) {
+        localStorage.setItem("profileImage", verifiedUser.profileImage);
+      }
+      if (token) localStorage.setItem("token", token);
+      window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(new Event("auth-change"));
+
+      addNotification(verifiedUser.email, {
+        icon: "✅",
+        type: "welcome",
+        message: `Email verified! Welcome to Aurelyf Care, ${verifiedUser.name}.`,
+      });
+
+      setSuccessName(verifiedUser.name);
+      setShowSuccess(true);
+      setIsVerifying(false);
+      setTimeout(() => navigate(role === "doctor" ? "/profile" : "/"), 2000);
+
+    } catch (error) {
+      console.error("Verification failed", error);
+      alert(error.response?.data?.message || "Invalid OTP or verification failed.");
+    } finally {
+      setIsOtpSubmitting(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    try {
+      await api.post("/users/resend-otp", { email: registeredEmail });
+      alert("OTP resent successfully!");
+    } catch (error) {
+      alert(error.response?.data?.message || "Failed to resend OTP.");
     }
   };
 
@@ -343,12 +388,57 @@ export default function Signup() {
             <div className="success-message-box">
               <div className="success-icon">✓</div>
               <h2>Thank You, {successName}!</h2>
-              <p>Your account has been created as a {role}.</p>
+              <p>Your account has been created and verified as a {role}.</p>
               {role === "doctor"
                 ? <p className="redirect-text">Redirecting to your profile... (pending admin approval)</p>
                 : <p className="redirect-text">Redirecting to home...</p>
               }
             </div>
+          </div>
+        ) : isVerifying ? (
+          <div className="otp-container" style={{ textAlign: "center", padding: "20px" }}>
+            <div style={{ fontSize: "3rem", marginBottom: "15px" }}>📧</div>
+            <h2>Verify Your Email</h2>
+            <p style={{ color: "#666", marginBottom: "20px" }}>
+              We've sent a 6-digit code to <strong>{registeredEmail}</strong>.<br/>
+              Please enter it below to complete your registration.
+            </p>
+            <form onSubmit={handleVerifyOTP}>
+              <div className="rhf-field">
+                <input
+                  type="text"
+                  placeholder="Enter 6-digit OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  className="rhf-input"
+                  style={{ textAlign: "center", fontSize: "1.5rem", letterSpacing: "5px", fontWeight: "bold" }}
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                className="rhf-submit-btn"
+                disabled={isOtpSubmitting}
+                style={{ background: "linear-gradient(135deg,#0d47a1,#1565c0)", color: "white", marginTop: "20px" }}
+              >
+                {isOtpSubmitting ? <><div className="rhf-spinner" /> Verifying...</> : "Verify & Complete Signup"}
+              </button>
+            </form>
+            <div style={{ marginTop: "20px", fontSize: "0.9rem" }}>
+              Didn't receive the code?{" "}
+              <button
+                onClick={handleResendOTP}
+                style={{ background: "none", border: "none", color: "#0d47a1", fontWeight: "bold", cursor: "pointer", textDecoration: "underline" }}
+              >
+                Resend OTP
+              </button>
+            </div>
+            <button
+              onClick={() => setIsVerifying(false)}
+              style={{ background: "none", border: "none", color: "#666", marginTop: "15px", cursor: "pointer" }}
+            >
+              ← Back to Signup
+            </button>
           </div>
         ) : (
           <>
