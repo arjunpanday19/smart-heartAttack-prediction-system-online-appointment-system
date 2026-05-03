@@ -1,9 +1,10 @@
 import multer from "multer";
 import path from "path";
+import os from "os";
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, "./public/temp");
+        cb(null, os.tmpdir());
     },
     filename: function (req, file, cb) {
         // Use timestamp + original extension to avoid filename collisions
