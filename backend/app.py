@@ -3,14 +3,23 @@ app.py  –  Flask backend for Heart Attack Prediction
 Run: python app.py
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 import joblib
 import numpy as np
 import os
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}}) # Allow all origins for prediction API
+CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        res = make_response()
+        res.headers['Access-Control-Allow-Origin'] = "*"
+        res.headers['Access-Control-Allow-Methods'] = "*"
+        res.headers['Access-Control-Allow-Headers'] = "*"
+        return res
 
 @app.route("/")
 def home():
