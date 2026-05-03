@@ -13,18 +13,23 @@ const ALLOWED_ORIGINS = [
     process.env.CORS_ORIGIN,
     "http://localhost:5173",
     "http://localhost:5174",
-].filter(Boolean);
+].filter(origin => origin && origin !== "*");
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (mobile apps, Postman, etc.)
+        // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
+        
         if (ALLOWED_ORIGINS.includes(origin)) {
             return callback(null, true);
+        } else {
+            console.error(`CORS Error: Origin ${origin} not allowed. Allowed:`, ALLOWED_ORIGINS);
+            return callback(new Error("Not allowed by CORS"), false);
         }
-        return callback(new Error("Not allowed by CORS"));
     },
-    credentials: true
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
 }));
 
 app.use(express.json({ limit: "16kb" }));
