@@ -12,6 +12,10 @@ import os
 app = Flask(__name__)
 CORS(app)  # Allow requests from the React dev server
 
+@app.route("/")
+def home():
+    return jsonify({"message": "Heart Attack Prediction ML API is running!"}), 200
+
 # ── Load model and scaler once at startup ─────────────────────────────────────
 # Use a relative path to find the model folder inside the same directory as app.py
 BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "heartattack-prediction-train-model")
