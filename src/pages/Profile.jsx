@@ -339,6 +339,9 @@ export default function Profile() {
     const navigate = useNavigate();
 
     const refreshUser = useCallback(async () => {
+        const token = localStorage.getItem("token");
+        if (!token) return; // Don't fetch if no token (prevents 401 on logout)
+
         try {
             const resp = await api.get("/users/current-user");
             const freshUser = resp.data.data;
