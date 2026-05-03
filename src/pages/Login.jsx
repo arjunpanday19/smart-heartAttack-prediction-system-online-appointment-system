@@ -58,6 +58,11 @@ function WelcomePopup({ user, appointments, onClose, onNavigate }) {
             <p style={{ margin: 0, color: "#0d47a1", fontSize: "0.9rem" }}>💡 No appointments yet. Book now to get started!</p>
           </div>
         )}
+        {user.role === "admin" && (
+          <div style={{ background: "#fef3c7", borderRadius: 12, padding: "1rem", textAlign: "center", marginBottom: "1.5rem" }}>
+            <p style={{ margin: 0, color: "#92400e", fontSize: "0.9rem" }}>🛡️ Admin Panel access granted. You can manage users and approvals.</p>
+          </div>
+        )}
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
           {user.role === "patient" && <>
             <button onClick={() => onNavigate("/doctors")} style={{ padding: 14, background: "linear-gradient(135deg,#0d47a1,#1565c0)", color: "white", border: "none", borderRadius: 14, cursor: "pointer", fontWeight: 700, fontSize: "1rem" }}>📅 Book an Appointment</button>
@@ -244,6 +249,7 @@ export default function Login() {
           onClose={() => { 
             setShowPopup(false); 
             if (loggedInUser.role === "doctor") navigate("/doctor-appointments");
+            else if (loggedInUser.role === "admin") navigate("/admin/dashboard");
             else navigate("/"); 
           }}
           onNavigate={(path) => { setShowPopup(false); navigate(path); }}
